@@ -1,2 +1,2 @@
-# DALL.E-PD
+# DALI-PD
 Synthetic layout heatmaps for physical design
