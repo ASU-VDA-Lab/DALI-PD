@@ -1,2 +1,2 @@
 # models
-This directory serves as the default path for saving the trained model download from [Google Drive](), please place the model weight files accordingly.
+This directory serves as the default path for saving the trained model download from [Google Drive](https://drive.google.com/drive/folders/1iRH4i5ZPM_Aw37KpWN6ERDvA-TnQ4QIl?usp=sharing), please place the model weight files accordingly.
