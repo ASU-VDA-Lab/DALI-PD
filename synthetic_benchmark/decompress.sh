@@ -1,6 +1,6 @@
 #!/bin/bash
 
-ARCHIVE_FOLDER=$1      # e.g., ./cell_density_split
+ARCHIVE_FOLDER=$1      # e.g., ./cell_density
 TARGET_FOLDER=$2       # e.g., ./cell_density_restored
 
 mkdir -p "$TARGET_FOLDER"
