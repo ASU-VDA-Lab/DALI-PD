@@ -9,7 +9,7 @@ This directory contains 23,070 synthetic circuit heatmaps for the following cate
  - [power_sca](./power_sca/): High power values indicate high current demand, which correlates with potential IR drop when switching and internal power are scaled by toggle rate, as shown in Fig.(f).
 
 ## Naming Convention
-Each set of circuit heatmaps has its own unique name in the format: {num}-u{util}-c{clock}-a{ar}.npy
+Each set of circuit heatmap is a 2D numpy array and has its own unique name in the format: {num}-u{util}-c{clock}-a{ar}.npy
  - num: index number from 0 to 23069
  - util: utilization, one of [0.9, 0.85, 0.8, 0.75, 0.7, 0.65]
  - clock: clock period in nanoseconds, one of [25.0, 20.0, 10.0, 8.0, 5.0, 2.0]
