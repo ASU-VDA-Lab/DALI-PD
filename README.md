@@ -11,6 +11,6 @@ Model weights can be found on [Google Drive](https://drive.google.com/drive/fold
 ## Table of Content
   - [single-heatmap.ipynb](./single-heatmap.ipynb): Python notebook that shows how to use DALI-PD to generate synthetic circuit heatmaps.
   - [models](./models): Default directory for placing the downloaded model weights.
-  - [synthetic_benchmark](./synthetic_benchmark/): Contains 23,069 synthetic circuit heatmaps.
+  - [synthetic_benchmark](./synthetic_benchmark/): Contains 23,070 synthetic circuit heatmaps.
   - [src](./src/): Contains scripts for running DALI-PD.
   - [environment.yml](./environment.yml): Contains packages for building the environment.
