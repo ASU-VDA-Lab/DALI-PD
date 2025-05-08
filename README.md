@@ -1,5 +1,5 @@
 # DALI-PD
-This repository contains scripts that enable the diffusion model (DALI-PD) to serve as a dataset generator for circuit heatmaps, providing 23,069 synthetic circuit heatmaps for machine learning (ML)-based physical design tasks.
+This repository contains scripts that enable the diffusion model (DALI-PD) to serve as a dataset generator for circuit heatmaps, providing 23,070 synthetic circuit heatmaps for machine learning (ML)-based physical design tasks.
 
 ## Framework Description
 ![Inference](etc/inference.png)
