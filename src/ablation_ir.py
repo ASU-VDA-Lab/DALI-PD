@@ -113,7 +113,7 @@ if __name__ == "__main__":
     batch_loss = list()
 
     # Load the model
-    unet = TestUnet(input_channels=2, output_channels=1)
+    unet = TestUnet(input_channels=3, output_channels=1)
     unet.to(device)
     unet.train()
     optimizer = torch.optim.Adam(unet.parameters(), lr=learning_rate)
