@@ -13,7 +13,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--device", type=str, default="cuda:0")
     parser.add_argument("--load_weight_path", type=str, default="")
-    parser.add_argument("--save_weight_paht", type=str, default="../models/")
+    parser.add_argument("--save_weight_path", type=str, default="../models/")
     parser.add_argument("--CircuitNet_test_path", type=str, default="../CircuitNet_N28_test/")
     parser.add_argument("--CircuitNet_train_path", type=str, default="../CircuitNet_N28_train/")
     parser.add_argument("--synthetic_path", type=str, default="../synthetic_benchmark/")
@@ -29,7 +29,7 @@ if __name__ == "__main__":
     # Prepare the arguments
     device = args.device
     load_weight_path = args.load_weight_path
-    save_weight_paht = args.save_weight_paht
+    save_weight_path = args.save_weight_path
     CircuitNet_test_path = args.CircuitNet_test_path
     CircuitNet_train_path = args.CircuitNet_train_path
     synthetic_path = args.synthetic_path
@@ -164,4 +164,4 @@ if __name__ == "__main__":
         test_loss = final_test_loss[-1] if len(final_test_loss) > 0 else train_loss
         progress_bar.set_postfix(loss=train_loss, lr=optimizer.param_groups[0]['lr'], test=test_loss)
         
-    torch.save(unet.state_dict(), save_weight_paht)
+    torch.save(unet.state_dict(), save_weight_path)
