@@ -47,20 +47,23 @@ if __name__ == "__main__":
     for file_name in os.listdir(CircuitNet_test_path + "cell_density/"):
         data_id = file_name.split(".npy")[0]
         test_data_cell_density = np.load(CircuitNet_test_path + "cell_density/" + file_name)
-        test_data_macro_region = np.load(CircuitNet_test_path + "macro_region/" + file_name)
-        test_data_RUDY = np.load(CircuitNet_test_path + "RUDY/" + file_name)
+        test_data_power_all = np.load(CircuitNet_test_path + "power_all/" + file_name)
+        test_data_power_sca = np.load(CircuitNet_test_path + "power_sca/" + file_name)
+        test_data_IR_drop = np.load(CircuitNet_test_path + "IR_drop/" + file_name)
         
         height = test_data_cell_density.shape[0]
         width = test_data_cell_density.shape[1]
         if height % 8 != 0:
             test_data_cell_density = np.pad(test_data_cell_density, ((0, 8 - height % 8), (0, 0), (0, 0)), mode="constant")
-            test_data_macro_region = np.pad(test_data_macro_region, ((0, 8 - height % 8), (0, 0), (0, 0)), mode="constant")
-            test_data_RUDY = np.pad(test_data_RUDY, ((0, 8 - height % 8), (0, 0), (0, 0)), mode="constant")
+            test_data_power_all = np.pad(test_data_power_all, ((0, 8 - height % 8), (0, 0), (0, 0)), mode="constant")
+            test_data_power_sca = np.pad(test_data_power_sca, ((0, 8 - height % 8), (0, 0), (0, 0)), mode="constant")
+            test_data_IR_drop = np.pad(test_data_IR_drop, ((0, 8 - height % 8), (0, 0), (0, 0)), mode="constant")
         if width % 8 != 0:
             test_data_cell_density = np.pad(test_data_cell_density, ((0, 0), (0, 8 - width % 8), (0, 0)), mode="constant")
-            test_data_macro_region = np.pad(test_data_macro_region, ((0, 0), (0, 8 - width % 8), (0, 0)), mode="constant")
-            test_data_RUDY = np.pad(test_data_RUDY, ((0, 0), (0, 8 - width % 8), (0, 0)), mode="constant")
-        test_data_dict[data_id] = np.dstack((test_data_cell_density, test_data_macro_region, test_data_RUDY)).transpose(2, 0, 1)[None, ...]
+            test_data_power_all = np.pad(test_data_power_all, ((0, 0), (0, 8 - width % 8), (0, 0)), mode="constant")
+            test_data_power_sca = np.pad(test_data_power_sca, ((0, 0), (0, 8 - width % 8), (0, 0)), mode="constant")
+            test_data_IR_drop = np.pad(test_data_IR_drop, ((0, 0), (0, 8 - width % 8), (0, 0)), mode="constant")
+        test_data_dict[data_id] = np.dstack((test_data_cell_density, test_data_power_all, test_data_power_sca, test_data_IR_drop)).transpose(2, 0, 1)[None, ...]
         test_dataset.append(test_data_dict[data_id])
     
 
@@ -71,20 +74,23 @@ if __name__ == "__main__":
         for file_name in os.listdir(synthetic_path + "cell_density/")[:num_of_heatmap]:
             data_id = file_name.split(".npy")[0]
             train_data_cell_density = np.load(synthetic_path + "cell_density/" + file_name)
-            train_data_macro_region = np.load(synthetic_path + "macro_region/" + file_name)
-            train_data_RUDY = np.load(synthetic_path + "RUDY/" + file_name)
+            train_data_power_all = np.load(synthetic_path + "power_all/" + file_name)
+            train_data_power_sca = np.load(synthetic_path + "power_sca/" + file_name)
+            train_data_IR_drop = np.load(synthetic_path + "IR_drop/" + file_name)
             
             height = train_data_cell_density.shape[0]
             width = train_data_cell_density.shape[1]
             if height % 8 != 0:
                 train_data_cell_density = np.pad(train_data_cell_density, ((0, 8 - height % 8), (0, 0), (0, 0)), mode="constant")
-                train_data_macro_region = np.pad(train_data_macro_region, ((0, 8 - height % 8), (0, 0), (0, 0)), mode="constant")
-                train_data_RUDY = np.pad(train_data_RUDY, ((0, 8 - height % 8), (0, 0), (0, 0)), mode="constant")
+                train_data_power_all = np.pad(train_data_power_all, ((0, 8 - height % 8), (0, 0), (0, 0)), mode="constant")
+                train_data_power_sca = np.pad(train_data_power_sca, ((0, 8 - height % 8), (0, 0), (0, 0)), mode="constant")
+                train_data_IR_drop = np.pad(train_data_IR_drop, ((0, 8 - height % 8), (0, 0), (0, 0)), mode="constant")
             if width % 8 != 0:
                 train_data_cell_density = np.pad(train_data_cell_density, ((0, 0), (0, 8 - width % 8), (0, 0)), mode="constant")
-                train_data_macro_region = np.pad(train_data_macro_region, ((0, 0), (0, 8 - width % 8), (0, 0)), mode="constant")
-                train_data_RUDY = np.pad(train_data_RUDY, ((0, 0), (0, 8 - width % 8), (0, 0)), mode="constant")
-            train_data_dict[data_id] = np.dstack((train_data_cell_density, train_data_macro_region, train_data_RUDY)).transpose(2, 0, 1)[None, ...]
+                train_data_power_all = np.pad(train_data_power_all, ((0, 0), (0, 8 - width % 8), (0, 0)), mode="constant")
+                train_data_power_sca = np.pad(train_data_power_sca, ((0, 0), (0, 8 - width % 8), (0, 0)), mode="constant")
+                train_data_IR_drop = np.pad(train_data_IR_drop, ((0, 0), (0, 8 - width % 8), (0, 0)), mode="constant")
+            train_data_dict[data_id] = np.dstack((train_data_cell_density, train_data_power_all, train_data_power_sca, train_data_IR_drop)).transpose(2, 0, 1)[None, ...]
             train_dataset.append(train_data_dict[data_id]) 
     else:
         train_dataset = list()
@@ -92,20 +98,23 @@ if __name__ == "__main__":
         for file_name in os.listdir(CircuitNet_train_path + "cell_density/")[:num_of_heatmap]:
             data_id = file_name.split(".npy")[0]
             train_data_cell_density = np.load(CircuitNet_train_path + "cell_density/" + file_name)
-            train_data_macro_region = np.load(CircuitNet_train_path + "macro_region/" + file_name)
-            train_data_RUDY = np.load(CircuitNet_train_path + "RUDY/" + file_name)
+            train_data_power_all = np.load(CircuitNet_train_path + "power_all/" + file_name)
+            train_data_power_sca = np.load(CircuitNet_train_path + "power_sca/" + file_name)
+            train_data_IR_drop = np.load(CircuitNet_train_path + "IR_drop/" + file_name)
             
             height = train_data_cell_density.shape[0]
             width = train_data_cell_density.shape[1]
             if height % 8 != 0:
                 train_data_cell_density = np.pad(train_data_cell_density, ((0, 8 - height % 8), (0, 0), (0, 0)), mode="constant")
-                train_data_macro_region = np.pad(train_data_macro_region, ((0, 8 - height % 8), (0, 0), (0, 0)), mode="constant")
-                train_data_RUDY = np.pad(train_data_RUDY, ((0, 8 - height % 8), (0, 0), (0, 0)), mode="constant")
+                train_data_power_all = np.pad(train_data_power_all, ((0, 8 - height % 8), (0, 0), (0, 0)), mode="constant")
+                train_data_power_sca = np.pad(train_data_power_sca, ((0, 8 - height % 8), (0, 0), (0, 0)), mode="constant")
+                train_data_IR_drop = np.pad(train_data_IR_drop, ((0, 8 - height % 8), (0, 0), (0, 0)), mode="constant")
             if width % 8 != 0:
                 train_data_cell_density = np.pad(train_data_cell_density, ((0, 0), (0, 8 - width % 8), (0, 0)), mode="constant")
-                train_data_macro_region = np.pad(train_data_macro_region, ((0, 0), (0, 8 - width % 8), (0, 0)), mode="constant")
-                train_data_RUDY = np.pad(train_data_RUDY, ((0, 0), (0, 8 - width % 8), (0, 0)), mode="constant")
-            train_data_dict[data_id] = np.dstack((train_data_cell_density, train_data_macro_region, train_data_RUDY)).transpose(2, 0, 1)[None, ...]
+                train_data_power_all = np.pad(train_data_power_all, ((0, 0), (0, 8 - width % 8), (0, 0)), mode="constant")
+                train_data_power_sca = np.pad(train_data_power_sca, ((0, 0), (0, 8 - width % 8), (0, 0)), mode="constant")
+                train_data_IR_drop = np.pad(train_data_IR_drop, ((0, 0), (0, 8 - width % 8), (0, 0)), mode="constant")
+            train_data_dict[data_id] = np.dstack((train_data_cell_density, train_data_power_all, train_data_power_sca, train_data_IR_drop)).transpose(2, 0, 1)[None, ...]
             train_dataset.append(train_data_dict[data_id])         
 
     np.random.shuffle(train_dataset)    
@@ -113,7 +122,7 @@ if __name__ == "__main__":
     batch_loss = list()
 
     # Load the model
-    unet = TestUnet(input_channels=3, output_channels=1)
+    unet = TestUnet(input_channels=2, output_channels=1)
     unet.to(device)
     unet.train()
     optimizer = torch.optim.Adam(unet.parameters(), lr=learning_rate)
@@ -124,8 +133,8 @@ if __name__ == "__main__":
     optimizer.zero_grad()
     final_test_loss = list()
     for i in range(train_step):
-        batch = train_dataset[int(i%length)][:, :2, :, :]
-        target = train_dataset[int(i%length)][:, [2], :, :]
+        batch = train_dataset[int(i%length)][:, :3, :, :]
+        target = train_dataset[int(i%length)][:, [3], :, :]
         batch = torch.from_numpy(batch).float().to(device)
         target = torch.from_numpy(target).float().to(device)
         # forward pass
@@ -150,8 +159,8 @@ if __name__ == "__main__":
             with torch.no_grad():
                 test_loss = list()
                 for j in range(len(test_dataset)):
-                    test_batch = test_dataset[j][:, [0, 1], :, :]
-                    test_target = test_dataset[j][:, [2], :, :]
+                    test_batch = test_dataset[j][:, :3, :, :]
+                    test_target = test_dataset[j][:, [3], :, :]
                     test_batch = torch.from_numpy(test_batch).float().to(device)
                     test_target = torch.from_numpy(test_target).float().to(device)
                     test_output = unet(test_batch)
