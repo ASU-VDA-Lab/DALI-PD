@@ -691,3 +691,48 @@ class EDAUNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
             return (sample,)
 
         return UNet2DConditionOutput(sample=sample)
+
+class TestUnet(nn.Module):
+    def __init__(self, input_channels, output_channels=1):
+        super().__init__()
+
+        self.down1 = nn.Conv2d(input_channels, 16, kernel_size=5, padding=2)
+        self.down2 = nn.Conv2d(16, 64, kernel_size=5, padding=2)
+        self.down3 = nn.Conv2d(64, 128, kernel_size=5, padding=2)
+        self.pool = nn.MaxPool2d(2)
+
+        self.bottleneck = nn.Conv2d(128, 512, kernel_size=5, padding=2)
+
+        self.up1 = nn.ConvTranspose2d(512, 128, kernel_size=5, stride=2, padding=2, output_padding=1)
+        self.up_conv1 = nn.Conv2d(128 + 128, 128, kernel_size=5, padding=2)
+
+        self.up2 = nn.ConvTranspose2d(128, 64, kernel_size=5, stride=2, padding=2, output_padding=1)
+        self.up_conv2 = nn.Conv2d(64 + 64, 64, kernel_size=5, padding=2)
+
+        self.up3 = nn.ConvTranspose2d(64, 16, kernel_size=5, stride=2, padding=2, output_padding=1)
+        self.up_conv3 = nn.Conv2d(16 + 16, 16, kernel_size=5, padding=2)
+
+        self.out_conv = nn.Conv2d(16, output_channels, kernel_size=5, padding=2)
+
+        self.relu = nn.ReLU(inplace=True)
+
+    def forward(self, x):
+        enc1 = self.relu(self.down1(x))
+        x = self.pool(enc1)
+        enc2 = self.relu(self.down2(x))
+        x = self.pool(enc2)
+        enc3 = self.relu(self.down3(x))
+        x = self.pool(enc3)
+        x = self.relu(self.bottleneck(x))
+        x = self.up1(x)
+        x = torch.cat([x, enc3], dim=1)
+        x = self.relu(self.up_conv1(x))
+        x = self.up2(x)
+        x = torch.cat([x, enc2], dim=1)
+        x = self.relu(self.up_conv2(x))
+        x = self.up3(x)
+        x = torch.cat([x, enc1], dim=1)
+        x = self.relu(self.up_conv3(x))
+        x = self.out_conv(x)
+        x = self.relu(x)
+        return x
