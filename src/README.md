@@ -21,3 +21,31 @@ The arguments are listed below:
 - `--steps`: Number of training steps. Set to `125` for pretraining, and `25` for finetuning.
 - `--train_with_synthetic`: Set to `True` to train with DALI-PD’s synthetic dataset, or `False` to train with [`CircuitNet`](https://circuitnet.github.io/)’s real circuit heatmaps.
 - `--num_of_heatmap`: Number of heatmaps to sample.
+
+## Parameters for reprodcing the results in the paper:
+
+### Pretraining (for both IR Drop and RUDY prediction tasks)
+| Dataset   | Batch Size | Steps |
+|-----------|------------|-------|
+| CircuitNet| 64         | 125   |
+| DALI-PD   | 64         | 125   |
+
+### With limited CircuitNet data (for pretraining from scratch and fine-tuning the DALI-PD-trained model on both IR Drop and RUDY prediction tasks)
+| Data Count | Batch Size | Epoch |
+|------------|------------|-------|
+| 50         | 1          | 1     |
+| 100        | 2          | 1     |
+| 200        | 2          | 1     |
+| 300        | 4          | 1     |
+| 400        | 4          | 1     |
+| 500        | 8          | 1     |
+| 600        | 8          | 1     |
+| 700        | 8          | 1     |
+| 800        | 8          | 1     |
+| 900        | 16         | 1     |
+| 1000       | 16         | 1     |
+| 1250       | 16         | 1     |
+| 1500       | 16         | 1     |
+| 1750       | 32         | 1     |
+| 2000       | 32         | 1     |
+| 2861       | 64         | 1     |
