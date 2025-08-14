@@ -32,6 +32,8 @@ The arguments are listed below:
 
 ### With limited CircuitNet data (for pretraining from scratch and fine-tuning the DALI-PD-trained model on both IR Drop and RUDY prediction tasks)
 
+![Pretrain_finetune](etc/pretrain_finetune.png)
+
 ### Step Scaling Rule
 
 The number of training steps scales with the **size of the CircuitNet dataset** according to the formula:
