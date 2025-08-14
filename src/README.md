@@ -32,6 +32,7 @@ The arguments are listed below:
 
 ### With limited CircuitNet data (for pretraining from scratch and fine-tuning the DALI-PD-trained model on both IR Drop and RUDY prediction tasks)
 
+Results: (Green lines indicate the starting loss of the DALI-PD-trained models.)
 ![Pretrain_finetune](../etc/pretrain_finetune.png)
 
 ### Step Scaling Rule
