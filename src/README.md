@@ -31,21 +31,32 @@ The arguments are listed below:
 | DALI-PD   | 64         | 125   |
 
 ### With limited CircuitNet data (for pretraining from scratch and fine-tuning the DALI-PD-trained model on both IR Drop and RUDY prediction tasks)
-| Data Count | Batch Size | Epoch |
-|------------|------------|-------|
-| 50         | 1          | 1     |
-| 100        | 2          | 1     |
-| 200        | 2          | 1     |
-| 300        | 4          | 1     |
-| 400        | 4          | 1     |
-| 500        | 8          | 1     |
-| 600        | 8          | 1     |
-| 700        | 8          | 1     |
-| 800        | 8          | 1     |
-| 900        | 16         | 1     |
-| 1000       | 16         | 1     |
-| 1250       | 16         | 1     |
-| 1500       | 16         | 1     |
-| 1750       | 32         | 1     |
-| 2000       | 32         | 1     |
-| 2861       | 64         | 1     |
+
+### Step Scaling Rule
+
+The number of training steps scales with the **size of the CircuitNet dataset** according to the formula:
+
+Steps ≈ 1.75 × sqrt(Dataset Size)
+
+---
+
+### Dataset Size vs. Training Configuration
+
+| Data Count | Batch Size | Epochs | Steps  |
+|------------|------------|--------|--------|
+| 50         | 1          | ~1   | 13  |
+| 100        | 2          | ~1   | 18  |
+| 200        | 2          | ~1   | 25  |
+| 300        | 4          | ~1   | 31  |
+| 400        | 4          | ~1   | 35  |
+| 500        | 8          | ~1   | 40  |
+| 600        | 8          | ~1   | 43  |
+| 700        | 8          | ~1   | 47  |
+| 800        | 8          | ~1   | 50  |
+| 900        | 16         | ~1   | 53  |
+| 1000       | 16         | ~1   | 55  |
+| 1250       | 16         | ~1   | 62  |
+| 1500       | 16         | ~1   | 68  |
+| 1750       | 32         | ~1   | 73  |
+| 2000       | 32         | ~1   | 79  |
+| 2861       | 64         | ~2   | 94  |
