@@ -35,9 +35,9 @@ The arguments are listed below:
 Results: (Green lines indicate the starting loss of the DALI-PD-trained models.)
 ![Pretrain_finetune](../etc/pretrain_finetune.png)
 
-### Step Scaling Rule
+### Scaling Rule
 
-The number of training steps scales with the **size of the CircuitNet dataset** according to the formula:
+The number of training steps and the batch size scale with the size of the CircuitNet dataset, following the formula:
 
 Steps ≈ 1.75 × sqrt(Dataset Size)
 
