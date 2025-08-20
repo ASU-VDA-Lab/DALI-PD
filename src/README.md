@@ -18,7 +18,7 @@ The arguments are listed below:
 - `--learning_rate`: Learning rate (default: `5e-5`).
 - `--weight_decay`: Weight decay rate (default: `5e-6`).
 - `--gradient_accum_steps`: Number of gradient accumulation steps to simulate batch training. Adjust based on the dataset.
-- `--steps`: Number of training steps. Set to `125` for pretraining, and `25` for finetuning.
+- `--steps`: Number of training steps. Set to `125` for pretraining.
 - `--train_with_synthetic`: Set to `True` to train with DALI-PD’s synthetic dataset, or `False` to train with [`CircuitNet`](https://circuitnet.github.io/)’s real circuit heatmaps.
 - `--num_of_heatmap`: Number of heatmaps to sample.
 
