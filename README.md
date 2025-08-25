@@ -16,7 +16,7 @@ Model weights can be found on [Google Drive](https://drive.google.com/drive/fold
   - [environment.yml](./environment.yml): Contains packages for building the environment.
 
 ## Cite This Work
-```
+'''
 @misc{wu2025dalipddiffusionbasedsyntheticlayout,
       title={DALI-PD: Diffusion-based Synthetic Layout Heatmap Generation for ML in Physical Design}, 
       author={Bing-Yue Wu and Vidya A. Chhabria},
@@ -26,4 +26,4 @@ Model weights can be found on [Google Drive](https://drive.google.com/drive/fold
       primaryClass={cs.LG},
       url={https://arxiv.org/abs/2507.10606}, 
 }
-```
+'''
