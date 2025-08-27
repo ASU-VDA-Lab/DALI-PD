@@ -1,4 +1,4 @@
-# synthetic_bnechmark
+# Synthetic Benchmarks
 ![Inference](../etc/example.png)
 This directory contains 23,070 synthetic circuit heatmaps for the following categories:
  - [cell_density](./cell_density/): The cell density map is a distribution of the number of cells in a unit area, as shown in Fig.(a).
