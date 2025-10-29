@@ -19,13 +19,13 @@ Each set of circuit heatmap is a 2D numpy array and has its own unique name in t
 ## SPICE Statistics
 | Metric Across Different Netlist | Min | Max | Std |
 |--------|-----|-----|-----|
-| R_min | 0.0171 | 0.0171 | 0.0 |
-| R_max | 15 | 15 | 0.0 |
-| R_count | 73678 | 323928 | 46140.3089 |
-| I_min | 0.0012 | 0.0082 | 0.0005 |
-| I_max | 0.0142 | 0.184892 | 0.0248 |
-| I_count | 4246 | 89633 | 11470.4512 |
-| V_count | 4 | 15 | 1.6296 |
+| Minimum Resistance (design-based) | 0.0171 | 0.0171 | 0.0 |
+| Maximum Resistance (design-based) | 15 | 15 | 0.0 |
+| Number of Resistance Segments | 73678 | 323928 | 46140.3089 |
+| Minimum Current (design-based) | 0.0012 | 0.0082 | 0.0005 |
+| Maximum Current (design-based) | 0.0142 | 0.184892 | 0.0248 |
+| Number of Current Sources | 4246 | 89633 | 11470.4512 |
+| Number of Voltage Sources | 4 | 15 | 1.6296 |
 
 ## Decompress
 ```
