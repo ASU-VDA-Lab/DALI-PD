@@ -524,6 +524,7 @@ class EDAUNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
             cross_attention_kwargs: Optional[Dict[str, Any]] = None,
             down_block_additional_residuals: Optional[Tuple[torch.Tensor]] = None,
             mid_block_additional_residual: Optional[torch.Tensor] = None,
+            up_block_additional_residuals: Optional[Tuple[torch.Tensor]] = None,
             return_dict: bool = True,
     ) -> Union[UNet2DConditionOutput, Tuple]:
         r"""
@@ -634,7 +635,6 @@ class EDAUNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
             else:
                 sample, res_samples = downsample_block(hidden_states=sample, temb=emb)
             down_block_res_samples += res_samples
-
         if down_block_additional_residuals is not None:
             new_down_block_res_samples = ()
 
@@ -682,6 +682,9 @@ class EDAUNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
                 sample = upsample_block(
                     hidden_states=sample, temb=emb, res_hidden_states_tuple=res_samples, upsample_size=upsample_size
                 )
+            
+            if up_block_additional_residuals is not None and not is_final_block:
+                sample = sample + up_block_additional_residuals[i]
         # 6. post-process
         if self.conv_norm_out:
             sample = self.conv_norm_out(sample)
@@ -736,3 +739,249 @@ class TestUnet(nn.Module):
         x = self.out_conv(x)
         x = self.relu(x)
         return x
+
+
+
+class PinMacroControlNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
+    @register_to_config
+    def __init__(
+        self,
+        in_channels: int = 2,
+        flip_sin_to_cos: bool = True,
+        freq_shift: int = 0,
+        down_block_types: Tuple[str] = (
+                "CrossAttnDownBlock2D",
+                "CrossAttnDownBlock2D",
+                "CrossAttnDownBlock2D",
+                "CrossAttnDownBlock2D"
+        ),
+        only_cross_attention: Union[bool, Tuple[bool]] = False,
+        block_out_channels: Tuple[int] = (640, 1280, 1280, 1280),
+        conv_channels: int = 640,
+        layers_per_block: int = 2,
+        downsample_padding: int = 1,
+        act_fn: str = "silu",
+        norm_num_groups: Optional[int] = 32,
+        norm_eps: float = 1e-5,
+        cross_attention_dim: int = 1024,
+        num_attention_heads: Union[int, Tuple[int]] = (5, 10, 20, 20),
+        dual_cross_attention: bool = False,
+        use_linear_projection: bool = True,
+        upcast_attention: bool = True,
+        resnet_time_scale_shift: str = "default",
+        time_embedding_type: str = "positional",  # fourier, positional
+        timestep_post_act: Optional[str] = None,
+        time_cond_proj_dim: Optional[int] = None,
+        conv_in_kernel: int = 3,
+        mid_block_scale_factor: float = 1,
+    ):
+        super().__init__()
+        self.zeroConvs = nn.ModuleList([])
+        #conv_in_padding = (conv_in_kernel - 1) // 2
+        #self.control_net_conv_in = nn.Conv2d(
+        #    in_channels, conv_channels, kernel_size=conv_in_kernel, padding=conv_in_padding
+        #)
+        #self.zeroConvs.append(nn.Conv2d(conv_channels, conv_channels, kernel_size=1, bias=True))
+
+        # time
+        if time_embedding_type == "fourier":
+            time_embed_dim = block_out_channels[0] * 2
+            if time_embed_dim % 2 != 0:
+                raise ValueError(f"`time_embed_dim` should be divisible by 2, but is {time_embed_dim}.")
+            self.time_proj = GaussianFourierProjection(
+                time_embed_dim // 2, set_W_to_weight=False, log=False, flip_sin_to_cos=flip_sin_to_cos
+            )
+            timestep_input_dim = time_embed_dim
+        elif time_embedding_type == "positional":
+            time_embed_dim = block_out_channels[0] * 4
+
+            self.time_proj = Timesteps(block_out_channels[0], flip_sin_to_cos, freq_shift)
+            timestep_input_dim = block_out_channels[0]
+        else:
+            raise ValueError(
+                f"{time_embedding_type} does not exist. Pleaes make sure to use one of `fourier` or `positional`."
+            )
+        
+        self.time_embedding = TimestepEmbedding(
+            timestep_input_dim,
+            time_embed_dim,
+            act_fn=act_fn,
+            post_act_fn=timestep_post_act,
+            cond_proj_dim=time_cond_proj_dim,
+        )
+
+        self.down_blocks = nn.ModuleList([])
+        if isinstance(only_cross_attention, bool):
+            only_cross_attention = [only_cross_attention] * len(down_block_types)
+
+        if isinstance(num_attention_heads, int):
+            num_attention_heads = (num_attention_heads,) * len(down_block_types)
+
+        # down
+        output_channel = in_channels
+        for i, down_block_type in enumerate(down_block_types):
+            input_channel = output_channel
+            output_channel = block_out_channels[i]
+            down_block = get_down_block(
+                down_block_type,
+                num_layers=layers_per_block,
+                in_channels=input_channel,
+                out_channels=output_channel,
+                temb_channels=time_embed_dim,
+                add_downsample=True if i != 0 else False,
+                resnet_eps=norm_eps,
+                resnet_act_fn=act_fn,
+                resnet_groups=norm_num_groups if i != 0 else 1,
+                cross_attention_dim=cross_attention_dim,
+                num_attention_heads=num_attention_heads[i],
+                attention_head_dim=num_attention_heads[i],
+                downsample_padding=downsample_padding,
+                dual_cross_attention=dual_cross_attention,
+                use_linear_projection=use_linear_projection,
+                only_cross_attention=only_cross_attention[i],
+                upcast_attention=upcast_attention,
+                resnet_time_scale_shift=resnet_time_scale_shift,
+            )
+            self.down_blocks.append(down_block)
+            self.zeroConvs.append(nn.Conv2d(output_channel, output_channel, kernel_size=1, bias=True))
+
+        for layer in self.zeroConvs:
+            nn.init.zeros_(layer.weight)
+            nn.init.zeros_(layer.bias)
+
+        self.wbox = nn.Linear(4, 512) # NN for bbox (x0, y0, x1, y1)
+        self.wpin = nn.Linear(3, 128) # NN for pin position (# of pin on each side, x, y)
+        
+
+    
+    def forward(
+            self,
+            sample: torch.FloatTensor,
+            timestep: Union[torch.Tensor, float, int],
+            bbox_tensor: torch.Tensor,
+            class_labels: Optional[torch.Tensor] = None,
+            timestep_cond: Optional[torch.Tensor] = None,
+            attention_mask: Optional[torch.Tensor] = None,
+            metadata: Optional[torch.Tensor] = None,
+            cross_attention_kwargs: Optional[Dict[str, Any]] = None,
+            return_dict: bool = True,
+            pin_tensor_list: Optional[List[torch.Tensor]] = None # a list of 4 tensors, each tensor contains multiple 2d tensors
+            # pin_tensor_list[0] is the top pin tensor
+            # pin_tensor_list[1] is the left pin tensor
+            # pin_tensor_list[2] is the bottom pin tensor
+            # pin_tensor_list[3] is the right pin tensor
+    ) -> Union[UNet2DConditionOutput, Tuple]:
+        r"""
+        Args:
+            sample (`torch.FloatTensor`): (batch, channel, height, width) noisy inputs tensor
+            timestep (`torch.FloatTensor` or `float` or `int`): (batch) timesteps
+            encoder_hidden_states (`torch.FloatTensor`): (batch, sequence_length, feature_dim) encoder hidden states
+            return_dict (`bool`, *optional*, defaults to `True`):
+                Whether or not to return a [`models.unet_2d_condition.UNet2DConditionOutput`] instead of a plain tuple.
+            cross_attention_kwargs (`dict`, *optional*):
+                A kwargs dictionary that if specified is passed along to the `AttnProcessor` as defined under
+                `self.processor` in
+                [diffusers.cross_attention](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/cross_attention.py).
+
+        Returns:
+            [`~models.unet_2d_condition.UNet2DConditionOutput`] or `tuple`:
+            [`~models.unet_2d_condition.UNet2DConditionOutput`] if `return_dict` is True, otherwise a `tuple`. When
+            returning a tuple, the first element is the sample tensor.
+        """
+
+        return_up_block_residual = list()
+        return_mid_block_residual = None
+
+        # prepare attention_mask
+        if attention_mask is not None:
+            attention_mask = (1 - attention_mask.to(sample.dtype)) * -10000.0
+            attention_mask = attention_mask.unsqueeze(1)
+        #top_pin_tensor = torch.sum(self.wpin(pin_tensor_list[0]), dim=1)
+        #left_pin_tensor = torch.sum(self.wpin(pin_tensor_list[1]), dim=1)
+        #bottom_pin_tensor = torch.sum(self.wpin(pin_tensor_list[2]), dim=1)
+        #right_pin_tensor = torch.sum(self.wpin(pin_tensor_list[3]), dim=1)
+
+        encoded_top_pin_tensor = self.wpin(pin_tensor_list[0])
+        encoded_left_pin_tensor = self.wpin(pin_tensor_list[1])
+        encoded_bottom_pin_tensor = self.wpin(pin_tensor_list[2])
+        encoded_right_pin_tensor = self.wpin(pin_tensor_list[3])
+
+        top_pin_amount = torch.tensor(max(encoded_top_pin_tensor.shape[1], 1))
+        left_pin_amount = torch.tensor(max(encoded_left_pin_tensor.shape[1], 1))
+        bottom_pin_amount = torch.tensor(max(encoded_bottom_pin_tensor.shape[1], 1))
+        right_pin_amount = torch.tensor(max(encoded_right_pin_tensor.shape[1], 1))
+
+        processed_top_pin_tensor = (torch.sum(encoded_top_pin_tensor, dim=1) / top_pin_amount) * (top_pin_amount ** 0.5)
+        processed_left_pin_tensor = (torch.sum(encoded_left_pin_tensor, dim=1) / left_pin_amount) * (left_pin_amount ** 0.5)
+        processed_bottom_pin_tensor = (torch.sum(encoded_bottom_pin_tensor, dim=1) / bottom_pin_amount) * (bottom_pin_amount ** 0.5)
+        processed_right_pin_tensor = (torch.sum(encoded_right_pin_tensor, dim=1) / right_pin_amount) * (right_pin_amount ** 0.5)
+
+        pin_tensor = torch.cat(
+            (processed_top_pin_tensor,
+            processed_left_pin_tensor,
+            processed_bottom_pin_tensor,
+            processed_right_pin_tensor),
+            dim = -1
+        )
+        
+        #pin_tensor = pin_tensor.repeat(1, bbox_tensor.shape[1], 1)
+        pin_tensor = pin_tensor.unsqueeze(1).expand(-1, bbox_tensor.shape[1], -1)
+
+        _bbox_tensor = self.wbox(bbox_tensor)
+
+        encoder_hidden_states = torch.cat((pin_tensor, _bbox_tensor), dim=-1)
+
+        # 0. center input if necessary
+        #if self.config.center_input_sample:
+        #    sample = 2 * sample - 1.0
+
+        # 1. time
+        timesteps = timestep
+        if not torch.is_tensor(timesteps):
+            # TODO: this requires sync between CPU and GPU. So try to pass timesteps as tensors if you can
+            # This would be a good case for the `match` statement (Python 3.10+)
+            is_mps = sample.device.type == "mps"
+            if isinstance(timestep, float):
+                dtype = torch.float32 if is_mps else torch.float64
+            else:
+                dtype = torch.int32 if is_mps else torch.int64
+            timesteps = torch.tensor([timesteps], dtype=dtype, device=sample.device)
+        elif len(timesteps.shape) == 0:
+            timesteps = timesteps[None].to(sample.device)
+
+        # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
+        timesteps = timesteps.expand(sample.shape[0])
+
+        t_emb = self.time_proj(timesteps)
+
+        # timesteps does not contain any weights and will always return f32 tensors
+        # but time_embedding might actually be running in fp16. so we need to cast here.
+        # there might be better ways to encapsulate this.
+        t_emb = t_emb.to(dtype=torch.float32)
+
+        emb = self.time_embedding(t_emb, timestep_cond)
+
+        # 2. pre-process
+        #sample = self.control_net_conv_in(sample)
+        zeroConvIndex = 0
+        #return_up_block_residual.append(self.zeroConvs[zeroConvIndex](sample))
+        #zeroConvIndex += 1
+        # 3. down
+        for i in range(len(self.down_blocks)):
+            downsample_block = self.down_blocks[i]
+            if hasattr(downsample_block, "has_cross_attention") and downsample_block.has_cross_attention:
+                sample, res_samples = downsample_block(
+                    hidden_states=sample,
+                    temb=emb,
+                    encoder_hidden_states=encoder_hidden_states,
+                    attention_mask=attention_mask,
+                    cross_attention_kwargs=cross_attention_kwargs,
+                )
+            else:
+                sample, res_samples = downsample_block(hidden_states=sample, temb=emb)
+
+            return_up_block_residual.append(self.zeroConvs[zeroConvIndex](sample))
+            zeroConvIndex += 1
+        
+        return_up_block_residual.reverse()
+        return return_up_block_residual
