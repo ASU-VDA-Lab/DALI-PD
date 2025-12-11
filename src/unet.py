@@ -948,7 +948,6 @@ class PinMacroControlNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
             dim = -1
         )
         
-        #pin_tensor = pin_tensor.repeat(1, bbox_tensor.shape[1], 1)
         pin_tensor = pin_tensor.unsqueeze(1).expand(-1, bbox_tensor.shape[1], -1)
 
         _bbox_tensor = self.wbox(bbox_tensor)
