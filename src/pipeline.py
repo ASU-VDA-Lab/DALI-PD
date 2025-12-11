@@ -503,9 +503,7 @@ class StableDiffusionPipeline(DiffusionPipeline):
         return bbox_embeds, para_embeds, pin_list
 
     def decode_latents(self, latents):
-        #latents = 1 / self.vae.scaling_factor * latents
         image = self.vae.decoder(latents)
-        #image = (image / 2 + 0.5).clamp(0, 1)
         # we always cast to float32 as this does not cause significant overhead and is compatible with bfloat16
         image = image.cpu().float().numpy()
         return image
@@ -606,8 +604,8 @@ class StableDiffusionPipeline(DiffusionPipeline):
         if width_ % 8 != 0:
             width_ = width_ + width_ % 8
 
-        latent_height = int(height_ // self.vae_scale_factor)
-        latent_width = int(width_ // self.vae_scale_factor)
+        latent_height = int(height_)#int(height_ // self.vae_scale_factor)
+        latent_width = int(width_)#int(width_ // self.vae_scale_factor)
         macro_numpy = np.zeros((latent_height, latent_width))
         pin_numpy = np.zeros((latent_height, latent_width))
 
@@ -620,7 +618,7 @@ class StableDiffusionPipeline(DiffusionPipeline):
             y1 = int(y1 * (latent_height - 1))
             for x in range(x0, x1+1):
                 for y in range(y0, y1+1):
-                    macro_numpy[y, x] += 1
+                    macro_numpy[y, x] = 1
 
         #assign pins
         for side in range(4):
@@ -737,7 +735,6 @@ class StableDiffusionPipeline(DiffusionPipeline):
         batch_size = 1
 
         device = self.unet.shadow_params[0].device if isinstance(self.unet, EMAModel) else self.unet.device
-        print(f"Device: {device}")
 
         # 3. Encode input prompt
         bbox_embeds, para_embeds, pin_list = self._encode_prompt(
@@ -784,23 +781,6 @@ class StableDiffusionPipeline(DiffusionPipeline):
                 do_classifier_free_guidance = do_classifier_free_guidance,
             )
 
-            '''
-            denoised_png_path = f"./samples/N28/control_net_{circuitnet_data_count}/control_feature/{name}.png"
-            name_index = name.split("-")[0]
-            for file in os.listdir(f"./samples/N28/control_net_{circuitnet_data_count}/control_feature/"):
-                if file.startswith(name_index + "-"):
-                    os.remove(f"./samples/N28/control_net_{circuitnet_data_count}/control_feature/{file}")
-            #denoised_png_path = f"./denoised_latent/denoised.png"
-            fig, axs = plt.subplots(1, 2, figsize=(10, 5))
-            axs[0].imshow(control_net_embeds[0][0].cpu().numpy(), origin='lower', cmap = 'jet')
-            axs[1].imshow(control_net_embeds[0][1].cpu().numpy(), origin='lower', cmap = 'jet')
-            # add colorbar
-            fig.colorbar(axs[0].imshow(control_net_embeds[0][0].cpu().numpy(), origin='lower', cmap = 'jet'), ax=axs[0])
-            fig.colorbar(axs[1].imshow(control_net_embeds[0][1].cpu().numpy(), origin='lower', cmap = 'jet'), ax=axs[1])
-            plt.savefig(denoised_png_path)
-            plt.close()
-            '''
-            
             # 6. Prepare extra step kwargs. TODO: Logic should ideally just be moved out of the pipeline
             extra_step_kwargs = self.prepare_extra_step_kwargs(generator, eta)
 
@@ -808,7 +788,7 @@ class StableDiffusionPipeline(DiffusionPipeline):
             num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
             with self.progress_bar(total=num_inference_steps) as progress_bar:
                 for i, t in enumerate(timesteps):
-                    control_net_embeds = self.scheduler.scale_model_input(control_net_embeds, t)
+                    #control_net_embeds = self.scheduler.scale_model_input(control_net_embeds, t)
                     # predict the noise residual
                     control_residuals = self.pin_macro_controlnet(
                         control_net_embeds,
@@ -881,7 +861,7 @@ class StableDiffusionPipeline(DiffusionPipeline):
             #not_meet_break_condition = False
             
             if restriction:
-                if iterations > 50:
+                if iterations > 25:
                     not_meet_break_condition = False
 
         return return_dict, iterations
@@ -890,23 +870,6 @@ class StableDiffusionPipeline(DiffusionPipeline):
         for i in range(len(return_dict["cell_density"])): # batch size
             # use IR_drop > eps_ir to define IR region, and do closing + dilation
             # to eliminate noise small holes and expand one circle to cover conservatively
-            """
-            eps_ir = 1e-4
-            eps_cell = 1e-6
-            IR_bin = (return_dict["IR_drop"][i] > eps_ir).astype(np.uint8)
-
-            kernel = np.ones((3, 3), np.uint8)
-            IR_bin = cv2.morphologyEx(IR_bin, cv2.MORPH_CLOSE, kernel, iterations=1)
-            IR_bin = cv2.dilate(IR_bin, kernel, iterations=1)
-
-            # compute the number of cells outside the IR region
-            outside_cnt = np.count_nonzero((return_dict["cell_density"][i] > eps_cell) & (IR_bin == 0))
-
-            # tolerance: allow a few pixels outside the IR region (to avoid being stuck by single-point noise)
-            tol_pixels = int(0.01 * return_dict["cell_density"][i].size)  # allow 0.1% pixels outside the IR region
-            
-            if outside_cnt <= tol_pixels:
-            """
             if np.sum(np.where((return_dict["cell_density"][i] > 0) & (return_dict["macro_region"][i] == 0), 1, 0)) >= \
                 utilization * 0.8 * ((height - 30) * (width - 30) - np.sum(np.where(return_dict["macro_region"][i] == 1, 1, 0))):
                 if np.sum(np.where((return_dict["cell_density"][i] > 0) & (return_dict["macro_region"][i] == 0), 1, 0)) <= \
@@ -1507,9 +1470,7 @@ class StableDiffusionPipeline_TestUNet(DiffusionPipeline):
         return bbox_embeds, para_embeds
 
     def decode_latents(self, latents):
-        #latents = 1 / self.vae.scaling_factor * latents
         image = self.vae.decoder(latents)
-        #image = (image / 2 + 0.5).clamp(0, 1)
         # we always cast to float32 as this does not cause significant overhead and is compatible with bfloat16
         image = image.cpu().float().numpy()
         return image
@@ -1735,12 +1696,6 @@ class StableDiffusionPipeline_TestUNet(DiffusionPipeline):
                     latent_model_input = torch.cat([latents] * 2) if do_classifier_free_guidance else latents
                     latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
-
-                    #print("==================")
-                    #for j in range(len(control_residuals)):
-                    #    print(control_residuals[j].shape)
-                    #print("==================")
-
                     noise_pred = self.unet(
                         latent_model_input,
                         t,
@@ -1796,28 +1751,15 @@ class StableDiffusionPipeline_TestUNet(DiffusionPipeline):
                     return_dict["cell_density"][i], return_dict["power_all"][i], return_dict["power_sca"][i], return_dict["macro_region"][i])
                         
             not_meet_break_condition = self.checker(return_dict, utilization, height, width)             
-            #not_meet_break_condition = False
 
             if restriction:
-                if iterations > 50:
+                if iterations > 25:
                     not_meet_break_condition = False
 
         return return_dict, iterations
 
     def checker(self, return_dict, utilization, height, width):
         for i in range(len(return_dict["cell_density"])): # batch size 
-            # use IR_drop > eps_ir to define IR region, and do closing + dilation
-            # to eliminate noise small holes and expand one circle to cover conservatively
-            #eps_ir = 0
-            #eps_cell = 0.01
-            #IR_bin = (return_dict["IR_drop"][i] > eps_ir).astype(np.uint8)
-
-            # compute the number of cells outside the IR region
-            #outside_cnt = np.count_nonzero((return_dict["cell_density"][i] > eps_cell) & (IR_bin == 0))
-
-            # tolerance: allow a few pixels outside the IR region (to avoid being stuck by single-point noise)
-            #tol_pixels = int(0.01 * return_dict["cell_density"][i].size)  # allow 0.1% pixels outside the IR region
-            #if outside_cnt <= tol_pixels:
             if np.sum(np.where((return_dict["cell_density"][i] > 0) & (return_dict["macro_region"][i] == 0), 1, 0)) >= \
                 utilization * 0.8 * ((height - 30) * (width - 30) - np.sum(np.where(return_dict["macro_region"][i] == 1, 1, 0))):
                 if np.sum(np.where((return_dict["cell_density"][i] > 0) & (return_dict["macro_region"][i] == 0), 1, 0)) <= \
