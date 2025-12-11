@@ -33,6 +33,7 @@
 # https://github.com/huggingface/diffusers/
 ###########################################################################
 from dataclasses import dataclass
+from gc import is_finalized
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
@@ -749,6 +750,14 @@ class PinMacroControlNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
         in_channels: int = 2,
         flip_sin_to_cos: bool = True,
         freq_shift: int = 0,
+        encoder_down_block_types: Tuple[str] = (
+                "DownEncoderBlock2D",
+                "DownEncoderBlock2D",
+                "DownEncoderBlock2D",
+                "DownEncoderBlock2D",
+            ),
+        encoder_block_out_channels: Tuple[int] = (32, 64, 128, 256),
+        encoder_out_channels: int = 256,
         down_block_types: Tuple[str] = (
                 "CrossAttnDownBlock2D",
                 "CrossAttnDownBlock2D",
@@ -764,7 +773,7 @@ class PinMacroControlNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
         norm_num_groups: Optional[int] = 32,
         norm_eps: float = 1e-5,
         cross_attention_dim: int = 1024,
-        num_attention_heads: Union[int, Tuple[int]] = (5, 10, 20, 20),
+        num_attention_heads: Union[int, Tuple[int]] = (10, 20, 20, 20),
         dual_cross_attention: bool = False,
         use_linear_projection: bool = True,
         upcast_attention: bool = True,
@@ -777,11 +786,6 @@ class PinMacroControlNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
     ):
         super().__init__()
         self.zeroConvs = nn.ModuleList([])
-        #conv_in_padding = (conv_in_kernel - 1) // 2
-        #self.control_net_conv_in = nn.Conv2d(
-        #    in_channels, conv_channels, kernel_size=conv_in_kernel, padding=conv_in_padding
-        #)
-        #self.zeroConvs.append(nn.Conv2d(conv_channels, conv_channels, kernel_size=1, bias=True))
 
         # time
         if time_embedding_type == "fourier":
@@ -810,6 +814,7 @@ class PinMacroControlNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
             cond_proj_dim=time_cond_proj_dim,
         )
 
+        self.encoder_down_blocks = nn.ModuleList([])
         self.down_blocks = nn.ModuleList([])
         if isinstance(only_cross_attention, bool):
             only_cross_attention = [only_cross_attention] * len(down_block_types)
@@ -817,8 +822,35 @@ class PinMacroControlNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
         if isinstance(num_attention_heads, int):
             num_attention_heads = (num_attention_heads,) * len(down_block_types)
 
+        # encoder
+        self.conv_in = nn.Conv2d(
+            in_channels,
+            encoder_block_out_channels[0],
+            kernel_size=3,
+            stride=1,
+            padding=1,
+        )
+        output_channel = encoder_block_out_channels[0]
+        for i, encoder_down_block_type in enumerate(encoder_down_block_types):
+            input_channel = output_channel
+            output_channel = encoder_block_out_channels[i]
+            is_final_block = i == len(encoder_block_out_channels) - 1
+            encoder_down_block = get_down_block(
+                encoder_down_block_type,
+                num_layers=layers_per_block,
+                in_channels=input_channel,
+                out_channels=output_channel,
+                add_downsample=not is_final_block,
+                resnet_eps=1e-6,
+                downsample_padding=0,
+                resnet_act_fn=act_fn,
+                resnet_groups=norm_num_groups,
+                attention_head_dim=output_channel,
+                temb_channels=None,
+            )
+            self.encoder_down_blocks.append(encoder_down_block)
         # down
-        output_channel = in_channels
+        output_channel = encoder_out_channels
         for i, down_block_type in enumerate(down_block_types):
             input_channel = output_channel
             output_channel = block_out_channels[i]
@@ -866,10 +898,6 @@ class PinMacroControlNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
             cross_attention_kwargs: Optional[Dict[str, Any]] = None,
             return_dict: bool = True,
             pin_tensor_list: Optional[List[torch.Tensor]] = None # a list of 4 tensors, each tensor contains multiple 2d tensors
-            # pin_tensor_list[0] is the top pin tensor
-            # pin_tensor_list[1] is the left pin tensor
-            # pin_tensor_list[2] is the bottom pin tensor
-            # pin_tensor_list[3] is the right pin tensor
     ) -> Union[UNet2DConditionOutput, Tuple]:
         r"""
         Args:
@@ -896,10 +924,6 @@ class PinMacroControlNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
         if attention_mask is not None:
             attention_mask = (1 - attention_mask.to(sample.dtype)) * -10000.0
             attention_mask = attention_mask.unsqueeze(1)
-        #top_pin_tensor = torch.sum(self.wpin(pin_tensor_list[0]), dim=1)
-        #left_pin_tensor = torch.sum(self.wpin(pin_tensor_list[1]), dim=1)
-        #bottom_pin_tensor = torch.sum(self.wpin(pin_tensor_list[2]), dim=1)
-        #right_pin_tensor = torch.sum(self.wpin(pin_tensor_list[3]), dim=1)
 
         encoded_top_pin_tensor = self.wpin(pin_tensor_list[0])
         encoded_left_pin_tensor = self.wpin(pin_tensor_list[1])
@@ -962,11 +986,15 @@ class PinMacroControlNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
         emb = self.time_embedding(t_emb, timestep_cond)
 
         # 2. pre-process
-        #sample = self.control_net_conv_in(sample)
         zeroConvIndex = 0
-        #return_up_block_residual.append(self.zeroConvs[zeroConvIndex](sample))
-        #zeroConvIndex += 1
-        # 3. down
+
+        # 3.1 encoder
+        sample = self.conv_in(sample)
+        for i in range(len(self.encoder_down_blocks)):
+            encoder_down_block = self.encoder_down_blocks[i]
+            sample = encoder_down_block(sample)
+
+        # 3.2 down
         for i in range(len(self.down_blocks)):
             downsample_block = self.down_blocks[i]
             if hasattr(downsample_block, "has_cross_attention") and downsample_block.has_cross_attention:
