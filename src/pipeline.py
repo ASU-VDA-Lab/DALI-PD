@@ -604,8 +604,8 @@ class StableDiffusionPipeline(DiffusionPipeline):
         if width_ % 8 != 0:
             width_ = width_ + width_ % 8
 
-        latent_height = int(height_)#int(height_ // self.vae_scale_factor)
-        latent_width = int(width_)#int(width_ // self.vae_scale_factor)
+        latent_height = int(height_)
+        latent_width = int(width_)
         macro_numpy = np.zeros((latent_height, latent_width))
         pin_numpy = np.zeros((latent_height, latent_width))
 
@@ -788,7 +788,6 @@ class StableDiffusionPipeline(DiffusionPipeline):
             num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
             with self.progress_bar(total=num_inference_steps) as progress_bar:
                 for i, t in enumerate(timesteps):
-                    #control_net_embeds = self.scheduler.scale_model_input(control_net_embeds, t)
                     # predict the noise residual
                     control_residuals = self.pin_macro_controlnet(
                         control_net_embeds,
@@ -858,7 +857,6 @@ class StableDiffusionPipeline(DiffusionPipeline):
                     return_dict["cell_density"][i], return_dict["power_all"][i], return_dict["power_sca"][i], return_dict["macro_region"][i])
                         
             not_meet_break_condition = self.checker(return_dict, utilization, height, width)             
-            #not_meet_break_condition = False
             
             if restriction:
                 if iterations > 25:
